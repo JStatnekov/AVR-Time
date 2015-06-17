@@ -18,7 +18,7 @@ float _clockSpeed;
 float GetClockSpeed()
 {
 	return _clockSpeed;
-}
+};
 
 
 void TimerInit(float clockSpeed)
@@ -71,7 +71,7 @@ void TimerInit(float clockSpeed)
 
 //This will not have very good results with a clock slower than 10Mhz
 //and is only useful for rough estimates. For small wait times, it is useless.
-void Delay_Microseconds(int numberOfMicroseconds)
+void DelayMicroseconds(int numberOfMicroseconds)
 {
 	TCCR1B &= ~((1<<CS12)|(1<<CS11)|(1<<CS10));//clear any previously set flags
 	float numberOfTicksToWait = 0;
@@ -105,9 +105,9 @@ void Delay_Microseconds(int numberOfMicroseconds)
 	while(TCNT1 < (numberOfTicksToWait - numberOfTicksConsumedinSetup))
 	{}
 	
-}
+};
 
-void Delay_Milliseconds(int numberOfMilliseconds)//up to 4.1 seconds
+void DelayMilliseconds(int numberOfMilliseconds)//up to 4.1 seconds
 {
 	TCCR1B &= ~((1<<CS12)|(1<<CS11)| (1<<CS10));//clear any previously set flags
 	float numberOfTicksToWait = 0;
@@ -147,9 +147,9 @@ void Delay_Milliseconds(int numberOfMilliseconds)//up to 4.1 seconds
 	{}
 };
 
-void Delay_Seconds(int numberOfSeconds)//up to 16 seconds
+void DelaySeconds(int numberOfSeconds)//up to 16 seconds
 {
-	for(int i = 0; i < numberOfSeconds; ++i){Delay_Milliseconds(1000);}
+	for(int i = 0; i < numberOfSeconds; ++i){DelayMilliseconds(1000);}
 };
 
 long GetNumberOfMilliSecondsSinceStart()
@@ -158,7 +158,7 @@ long GetNumberOfMilliSecondsSinceStart()
 	long time = (_timeMinutes*60*1000)+(_timeSeconds*1000)+(_timeTensOfMilliSeconds*10);
 	sei();
 	return time;
-}
+};
 
 int GetTime(enum TimeUnits timeUnit)
 {	
@@ -195,5 +195,5 @@ ISR(TIMER0_COMPA_vect)
 			_timeMinutes++;
 		}
 	}	
-}
+};
 

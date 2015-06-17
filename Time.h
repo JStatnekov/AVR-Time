@@ -10,6 +10,7 @@
 #define TIME_H_
 
 
+
 enum TimeUnits
 {
 	TensOfMilliSeconds,
@@ -21,9 +22,9 @@ enum TimeUnits
 
 void TimerInit(float clockspeed);
 
-void Delay_Microseconds(int numberOfMicroseconds);
-void Delay_Milliseconds(int numberOfMilliseconds);//up to 4 seconds
-void Delay_Seconds(int numberOfSeconds);//up to 16 seconds
+void DelayMicroseconds(int numberOfMicroseconds);
+void DelayMilliseconds(int numberOfMilliseconds);//up to 4 seconds
+void DelaySeconds(int numberOfSeconds);//up to 16 seconds
 int GetTime(enum TimeUnits timeUnit);
 long GetNumberOfMilliSecondsSinceStart();
 
