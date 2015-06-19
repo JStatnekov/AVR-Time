@@ -1,42 +1,37 @@
-/*
- * Time.c
- *
- * Created: 10/6/2012 3:25:44 PM
- *  Author: JBS
- */ 
+
 #include "Time.h"
 #include <avr/interrupt.h>
 
-static volatile long _timeTensOfMilliSeconds;
-static volatile long _timeSeconds;
+static volatile uint8_t _timeTensOfMilliSeconds;
+static volatile uint8_t _timeSeconds;
 static volatile long _timeMinutes;
-static uint8_t initializedAlready = 0;
+static uint8_t initializedAlreadyTimer = 0;
 
-//TODO: set this according to whatever clock speed you are using
-float _clockSpeed;
+static float _clockSpeed;
 
 float GetClockSpeed()
 {
 	return _clockSpeed;
 };
 
-
-void TimerInit(float clockSpeed)
+//set up using 8bit counter 0
+void FullTimerInit(float clockSpeed)
 {
-	if(initializedAlready)
+	if(initializedAlreadyTimer)
 		return;
 	
 	_clockSpeed = clockSpeed;
-	initializedAlready = 1;	
+	initializedAlreadyTimer = 1;	
 	_timeTensOfMilliSeconds = 0;
 	_timeSeconds = 0;
 	_timeMinutes = 0;
 	
 	cli();
-	TCCR0A |= (1<<WGM01);
+	
+	TCCR0A |= (1<<WGM01);//Timer/Counter Control Register |= (Clear Timer on Compare Match with OCRA & set TOV flag)
 	TIMSK0 |= (1 << OCIE0A);//enable interrupt comparing with OCROA
 	
-	TCCR0B &= ~((1 << CS02) |(1<<CS01)| (1<< CS22));//clear any previously set values (TimerInit might be called to recalibrate the time after drift has occured)
+	TCCR0B &= ~((1<<CS00) | (1<<CS01) | (1<<CS02));//clear any previously set values (TimerInit might be called to recalibrate the time after drift has occurred)
 	
 	if(_clockSpeed == (float)1e6)
 	{
@@ -47,19 +42,19 @@ void TimerInit(float clockSpeed)
 	}
 	else if(_clockSpeed == (float)16e6)
 	{
-		TCCR0B |= (1 << CS02) | (1<< CS22);//prescale by 1024
+		TCCR0B |= (1 << CS02) | (1<< CS00);//prescale by 1024
 		OCR0A = 156;//every 15,625 ticks make up a second
 		//we lose 0.0016 of a second every second, after 10min 25s we have lost a second (our clock is fast by a second)
 	}
 	else if(_clockSpeed == (float)14.7456e6)
 	{
-		TCCR0B |= (1 << CS02) | (1<< CS22);//prescale by 1024
+		TCCR0B |= (1 << CS02) | (1<< CS00);//prescale by 1024
 		 OCR0A = 144;//every 14,400 ticks make up a second
 		//we lose nothing, the clock is accurate
 	}
 	else if(_clockSpeed == (float)12.288e6)
 	{
-		TCCR0B |= (1 << CS02) | (1<< CS22);//prescale by 1024
+		TCCR0B |= (1 << CS02) | (1<< CS00);//prescale by 1024
 		OCR0A = 120;//every 12000 ticks make up a second
 		//we lose nothing, the clock is accurate
 	}
@@ -69,6 +64,63 @@ void TimerInit(float clockSpeed)
     sei();
 };
 
+
+long GetTotalTimerValueInMilliSeconds()
+{
+	cli();
+	long time = (_timeMinutes*60*1000)+(_timeSeconds*1000)+(_timeTensOfMilliSeconds*10);
+	sei();
+	return time;
+};
+
+long GetTimerValue(enum TimeUnits timeUnit)
+{
+	cli();
+	long returnValue = 0;
+	switch(timeUnit)
+	{
+		case TensOfMilliSeconds:
+			returnValue = _timeTensOfMilliSeconds;
+			break;
+		case Seconds:
+			returnValue = _timeSeconds;
+			break;
+		case Minutes:
+			returnValue = _timeMinutes;
+			break;
+		default:
+			break;
+	}
+	sei();
+	return returnValue;
+};
+
+
+ISR(TIMER0_COMPA_vect)
+{
+	cli();
+	++_timeTensOfMilliSeconds;
+	
+	if(_timeTensOfMilliSeconds >= 100)
+	{
+		_timeTensOfMilliSeconds = 0;
+		++_timeSeconds;
+		if(_timeSeconds >= 60)
+		{
+			_timeSeconds = 0;
+			++_timeMinutes;
+		}
+	}
+	sei();
+};
+
+
+void DelayInit(float clockspeed)
+{
+	_clockSpeed = clockspeed;
+}
+
+//use counter 1 which is 16bit
 //This will not have very good results with a clock slower than 10Mhz
 //and is only useful for rough estimates. For small wait times, it is useless.
 void DelayMicroseconds(int numberOfMicroseconds)
@@ -107,6 +159,7 @@ void DelayMicroseconds(int numberOfMicroseconds)
 	
 };
 
+//use counter 1 which is 16bit
 void DelayMilliseconds(int numberOfMilliseconds)//up to 4.1 seconds
 {
 	TCCR1B &= ~((1<<CS12)|(1<<CS11)| (1<<CS10));//clear any previously set flags
@@ -147,53 +200,9 @@ void DelayMilliseconds(int numberOfMilliseconds)//up to 4.1 seconds
 	{}
 };
 
+//use counter 1 which is 16bit
 void DelaySeconds(int numberOfSeconds)//up to 16 seconds
 {
 	for(int i = 0; i < numberOfSeconds; ++i){DelayMilliseconds(1000);}
-};
-
-long GetNumberOfMilliSecondsSinceStart()
-{
-	cli();
-	long time = (_timeMinutes*60*1000)+(_timeSeconds*1000)+(_timeTensOfMilliSeconds*10);
-	sei();
-	return time;
-};
-
-int GetTime(enum TimeUnits timeUnit)
-{	
-	cli();
-	uint8_t returnValue = 0;
-	switch(timeUnit)
-	{
-		case TensOfMilliSeconds: 
-			returnValue = _timeTensOfMilliSeconds; 
-			break;
-		case Seconds:
-			returnValue = _timeSeconds; 
-			break;
-		case Minutes:
-			returnValue = _timeMinutes; 
-			break;
-	}
-	sei();
-	return returnValue;
-};
-
-
-ISR(TIMER0_COMPA_vect)
-{
-	_timeTensOfMilliSeconds++;
-	
-	if(_timeTensOfMilliSeconds >= 100)
-	{
-		_timeTensOfMilliSeconds = 0;
-		_timeSeconds++;
-		if(_timeSeconds >= 60)
-		{
-			_timeSeconds=0;
-			_timeMinutes++;
-		}
-	}	
 };
 
